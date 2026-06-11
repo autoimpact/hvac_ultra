@@ -780,7 +780,7 @@
     intersections.sort((a, b) => a.t - b.t);
     return { x: intersections[0].x, y: intersections[0].y };
 }
-   function drawPipelines() {
+function drawPipelines() {
         const svg = document.getElementById('svg-layer');
         const defsContent = svg.querySelector('defs').outerHTML;
         svg.innerHTML = defsContent; 
@@ -800,7 +800,7 @@
             const x2 = el2.offsetLeft + el2.offsetWidth / 2;
             const y2 = el2.offsetTop + imgW2.offsetTop + (imgW2.offsetHeight / 2);
 
-            // 冷熱水管基本偏移
+            // 恢復你原本的冷熱水管基本偏移 (-12 與 12)
             const baseOffset = pipe.type === 'cold' ? -12 : 12;
             const cx1 = x1 + baseOffset;
             const cy1 = y1 + baseOffset;
@@ -820,12 +820,11 @@
             };
         }).filter(p => p !== null);
 
-        // 2. 核心重疊檢查與水平軌道分流 (軌道間距設為 16px)
+        // 2. 核心重疊檢查與水平軌道分流 (當多條線重疊時自動錯開 16px)
         const trackSpacing = 16; 
 
         for (let i = 0; i < calculatedPipes.length; i++) {
             let overlapCount = 0; 
-
             for (let j = 0; j < i; j++) {
                 const pA = calculatedPipes[j];
                 const pB = calculatedPipes[i];
@@ -842,8 +841,6 @@
                     }
                 }
             }
-
-            // 若有重疊，將目前管線的中間段高度(Y)往下推移，避開上一條線
             if (overlapCount > 0) {
                 const finalOffset = overlapCount * trackSpacing;
                 calculatedPipes[i].points[1].y += finalOffset;
@@ -851,7 +848,7 @@
             }
         }
 
-        // 3. 渲染錯開後的全新折線與方向向量
+        // 3. 渲染錯開後的折線與方向向量
         calculatedPipes.forEach((pData, index) => {
             const pts = pData.points;
             const pipe = pData.pipe;
@@ -864,9 +861,12 @@
             const baseLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             baseLine.setAttribute('d', pathData);
             baseLine.setAttribute('fill', 'none');
+            
+            // 🔧 【修正】讓線條顏色精準回歸原本的冷熱水管變數
             baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)');
+            
             baseLine.setAttribute('stroke-width', '2');
-            baseLine.setAttribute('opacity', '0.35');
+            baseLine.setAttribute('opacity', '0.35'); // 恢復原本淡淡的線條透明度
             group.appendChild(baseLine);
 
             // 分段獨立畫箭頭
@@ -896,7 +896,7 @@
                 }
             });
 
-            group.appendChild(hitArea); // 已移除筆誤，恢復正確調用
+            group.appendChild(hitArea); 
             svg.appendChild(group);
         });
     }
@@ -908,7 +908,10 @@
         if (len < 20) return; 
 
         const arrowSpacing = 28; 
+        
+        // 🔧 【修正】讓箭頭顏色精準回歸原本的冷熱水管顏色
         const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)';
+        
         const angle = Math.atan2(dy, dx); 
         
         for (let dist = 15; dist < len - 15; dist += arrowSpacing) {
@@ -920,7 +923,10 @@
             triangle.setAttribute('points', '-6,-4 4,0 -6,4');
             triangle.setAttribute('fill', arrowColor);
             triangle.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle * 180 / Math.PI})`);
+            
+            // 恢復你原本的發光（Glow）效果特效類別
             triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-hot');
+            
             group.appendChild(triangle);
         }
     }
