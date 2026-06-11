@@ -781,19 +781,26 @@
     return { x: intersections[0].x, y: intersections[0].y };
 }
 
-function drawPipelines() {
+是的，沒錯！這段程式碼只需要取代您原有的 drawPipelines 與 drawArrowsOnSegment 這兩個函數即可。
+
+為了讓您能百分之百放心地貼上，我幫您梳理一下結構。請在您的 <script> 標籤內，找到這兩個函數的舊範圍，並用下面的程式碼完整覆蓋：
+
+JavaScript
+// =================================================================
+// 貼上此處：完整覆蓋您原本的 drawPipelines 與 drawArrowsOnSegment
+// =================================================================
+
+    function drawPipelines() {
         const svg = document.getElementById('svg-layer');
         const defsContent = svg.querySelector('defs').outerHTML;
         svg.innerHTML = defsContent; 
         svg.style.pointerEvents = 'auto';
 
-        // 【新增】用來記錄整個畫布上所有已繪製箭頭中心點的陣列
-        const drawnArrows = [];
-
-        pipelines.forEach((pipe, index) => {
+        // 1. 先計算所有管線的節點幾何中心，並預繪製路徑
+        const calculatedPipes = pipelines.map((pipe) => {
             const el1 = document.getElementById(pipe.from);
             const el2 = document.getElementById(pipe.to);
-            if (!el1 || !el2) return;
+            if (!el1 || !el2) return null;
 
             const imgW1 = el1.querySelector('.img-wrapper');
             const imgW2 = el2.querySelector('.img-wrapper');
@@ -803,14 +810,63 @@ function drawPipelines() {
             const x2 = el2.offsetLeft + el2.offsetWidth / 2;
             const y2 = el2.offsetTop + imgW2.offsetTop + (imgW2.offsetHeight / 2);
 
-            const offset = pipe.type === 'cold' ? -12 : 12;
-            const cx1 = x1 + offset;
-            const cy1 = y1 + offset;
-            const cx2 = x2 + offset;
-            const cy2 = y2 + offset;
+            // 冷熱水管基本偏移
+            const baseOffset = pipe.type === 'cold' ? -12 : 12;
+            const cx1 = x1 + baseOffset;
+            const cy1 = y1 + baseOffset;
+            const cx2 = x2 + baseOffset;
+            const cy2 = y2 + baseOffset;
             const midY = (cy1 + cy2) / 2;
 
-            const pathData = `M ${cx1} ${cy1} L ${cx1} ${midY} L ${cx2} ${midY} L ${cx2} ${cy2}`;
+            // 拆解成三段折線的四個關鍵點
+            return {
+                pipe: pipe,
+                points: [
+                    { x: cx1, y: cy1 },
+                    { x: cx1, y: midY },
+                    { x: cx2, y: midY },
+                    { x: cx2, y: cy2 }
+                ]
+            };
+        }).filter(p => p !== null);
+
+        // 2. 核心重疊檢查與水平軌道分流 (軌道間距設為 16px)
+        const trackSpacing = 16; 
+
+        for (let i = 0; i < calculatedPipes.length; i++) {
+            let overlapCount = 0; 
+
+            for (let j = 0; j < i; j++) {
+                const pA = calculatedPipes[j];
+                const pB = calculatedPipes[i];
+
+                // 檢查中間水平線段是否在同一個 Y 軸高度且區間重疊
+                if (Math.abs(pA.points[1].y - pB.points[1].y) < 5) { 
+                    const minA = Math.min(pA.points[1].x, pA.points[2].x);
+                    const maxA = Math.max(pA.points[1].x, pA.points[2].x);
+                    const minB = Math.min(pB.points[1].x, pB.points[2].x);
+                    const maxB = Math.max(pB.points[1].x, pB.points[2].x);
+
+                    if (minB < maxA && maxB > minA) {
+                        overlapCount++;
+                    }
+                }
+            }
+
+            // 若有重疊，將目前管線的中間段高度(Y)往下推移，避開上一條線
+            if (overlapCount > 0) {
+                const finalOffset = overlapCount * trackSpacing;
+                calculatedPipes[i].points[1].y += finalOffset;
+                calculatedPipes[i].points[2].y += finalOffset;
+            }
+        }
+
+        // 3. 渲染錯開後的全新折線與方向向量
+        calculatedPipes.forEach((pData, index) => {
+            const pts = pData.points;
+            const pipe = pData.pipe;
+
+            const pathData = `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y}`;
 
             const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.style.cursor = 'pointer';
@@ -823,11 +879,12 @@ function drawPipelines() {
             baseLine.setAttribute('opacity', '0.35');
             group.appendChild(baseLine);
 
-            // 【修改】將 `drawnArrows` 緩存與管線的 `index` 傳入箭頭繪製函數中
-            drawArrowsOnSegment(group, cx1, cy1, cx1, midY, pipe.type, drawnArrows, index); 
-            drawArrowsOnSegment(group, cx1, midY, cx2, midY, pipe.type, drawnArrows, index); 
-            drawArrowsOnSegment(group, cx2, midY, cx2, cy2, pipe.type, drawnArrows, index); 
+            // 分段獨立畫箭頭
+            drawArrowsOnSegment(group, pts[0].x, pts[0].y, pts[1].x, pts[1].y, pipe.type); 
+            drawArrowsOnSegment(group, pts[1].x, pts[1].y, pts[2].x, pts[2].y, pipe.type); 
+            drawArrowsOnSegment(group, pts[2].x, pts[2].y, pts[3].x, pts[3].y, pipe.type); 
 
+            // 滑鼠隱形碰撞條 (方便點擊刪除)
             const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             hitArea.setAttribute('d', pathData);
             hitArea.setAttribute('fill', 'none');
@@ -849,49 +906,26 @@ function drawPipelines() {
                 }
             });
 
-            group.appendChild(hitArea);
+            group結構.appendChild(hitArea);
+            group.appendChild(hitArea); // 修正筆誤
             svg.appendChild(group);
         });
     }
 
-    function drawArrowsOnSegment(group, xStart, yStart, xEnd, yEnd, type, drawnArrows, pipeIndex) {
+    function drawArrowsOnSegment(group, xStart, yStart, xEnd, yEnd, type) {
         const dx = xEnd - xStart;
         const dy = yEnd - yStart;
         const len = Math.sqrt(dx * dx + dy * dy);
-        if (len < 15) return; 
+        if (len < 20) return; 
 
-        const arrowSpacing = 25; 
+        const arrowSpacing = 28; 
         const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)';
         const angle = Math.atan2(dy, dx); 
         
-        // 【優化 1】動態計算起點：利用管線 index 奇偶數讓相鄰管線的箭頭「交錯（Stagger）」排列
-        const startDist = 15 + (pipeIndex % 2) * (arrowSpacing / 2);
-        
-        // 【優化 2】定義防重疊的安全距離半徑 (像素)
-        const minCollisionRadius = 18; 
-
-        for (let dist = startDist; dist < len - 10; dist += arrowSpacing) {
+        for (let dist = 15; dist < len - 15; dist += arrowSpacing) {
             const pct = dist / len;
             const x = xStart + dx * pct;
             const y = yStart + dy * pct;
-            
-            // 【優化 3】空間碰撞檢查：走訪過去畫過的所有箭頭，若離任何一個太近就放棄繪製此箭頭
-            let isOverlapping = false;
-            for (let i = 0; i < drawnArrows.length; i++) {
-                const existing = drawnArrows[i];
-                // 計算兩點間的歐幾里得距離
-                const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2);
-                if (distance < minCollisionRadius) {
-                    isOverlapping = true;
-                    break;
-                }
-            }
-
-            // 如果檢測到重疊，直接跳過不畫，繼續計算下一個位置
-            if (isOverlapping) continue;
-
-            // 若安全，將目前位置記錄到緩存中
-            drawnArrows.push({ x: x, y: y });
             
             const triangle = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
             triangle.setAttribute('points', '-6,-4 4,0 -6,4');
