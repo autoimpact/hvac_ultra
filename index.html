@@ -21,7 +21,7 @@
             --text-secondary: #475569;
             
             --cold-pipe: #0087DC;     
-            --hot-pipe: #48CAE4;      
+            --cooling-pipe: #48CAE4;      
         }
 
         body { 
@@ -410,9 +410,9 @@
         .btn-cold:hover { background-color: var(--cold-pipe); color: white; }
         .btn-cold:hover::before { background: white; }
         
-        .btn-hot { color: var(--hot-pipe); border: 2px solid var(--hot-pipe); }
-        .btn-hot::before { background: var(--hot-pipe); }
-        .btn-hot:hover { background-color: var(--hot-pipe); color: white; }
+        .btn-hot { color: var(--cooling-pipe); border: 2px solid var(--cooling-pipe); }
+        .btn-hot::before { background: var(--cooling-pipe); }
+        .btn-hot:hover { background-color: var(--cooling-pipe); color: white; }
         .btn-hot:hover::before { background: white; }
 
         /* Flaticon 聲明 */
@@ -509,7 +509,7 @@
             deleteNodeConfirm: '確定要刪除這個元件嗎？\n(與其相連的管線也會一併清除)',
             deletePipeConfirm: '確定要刪除這條管線嗎？',
             coldPipeStart: '<span style="color:var(--cold-pipe);">請選擇第一個元件（正在建立冰水迴路)...</span>',
-            hotPipeStart: '<span style="color:var(--hot-pipe);">請選擇第一個元件（正在建立冷水迴路）...</span>',
+            hotPipeStart: '<span style="color:var(--cooling-pipe);">請選擇第一個元件（正在建立冷水迴路）...</span>',
             selectSecond: '選擇第二個元件...',
             catHVAC: '空調設備 (HVAC Units)',
             catWhiteSpace: '白空間 / 負載端 (White Space)',
@@ -525,7 +525,7 @@
             deleteNodeConfirm: 'Delete this component?\n(Connected pipelines will also be removed)',
             deletePipeConfirm: 'Delete this pipeline?',
             coldPipeStart: '<span style="color:var(--cold-pipe);">Select first component (Routing Chilled Water Loop)...</span>',
-            hotPipeStart: '<span style="color:var(--hot-pipe);">Select first component (Routing Cooling Water Loop)...</span>',
+            hotPipeStart: '<span style="color:var(--cooling-pipe);">Select first component (Routing Cooling Water Loop)...</span>',
             selectSecond: 'Select second component...',
             catHVAC: 'HVAC Units',
             catWhiteSpace: 'White Space / Load',
@@ -953,7 +953,7 @@ function drawPipelines() {
         const baseLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         baseLine.setAttribute('d', pathData);
         baseLine.setAttribute('fill', 'none');
-        baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)');
+        baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--cooling-pipe)');
         baseLine.setAttribute('stroke-width', '2');
         baseLine.setAttribute('opacity', '0.35');
         group.appendChild(baseLine);
@@ -993,7 +993,7 @@ function drawPipelines() {
 // ==========================================
 function drawArrowsOnPath(group, pts, type) {
     const arrowSpacing = 40; // 調整為 40，讓三角形有足夠空間，避免視覺壅擠
-    const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)';
+    const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--cooling-pipe)';
 
     for (let i = 0; i < pts.length - 1; i++) {
         const dx = pts[i+1].x - pts[i].x;
