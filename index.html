@@ -410,10 +410,10 @@
         .btn-cold:hover { background-color: var(--cold-pipe); color: white; }
         .btn-cold:hover::before { background: white; }
         
-        .btn-hot { color: var(--cooling-pipe); border: 2px solid var(--cooling-pipe); }
-        .btn-hot::before { background: var(--cooling-pipe); }
-        .btn-hot:hover { background-color: var(--cooling-pipe); color: white; }
-        .btn-hot:hover::before { background: white; }
+        .btn-cooling { color: var(--cooling-pipe); border: 2px solid var(--cooling-pipe); }
+        .btn-cooling::before { background: var(--cooling-pipe); }
+        .btn-cooling:hover { background-color: var(--cooling-pipe); color: white; }
+        .btn-cooling:hover::before { background: white; }
 
         /* Flaticon 聲明 */
         #flaticon-attribution { 
@@ -431,7 +431,7 @@
 
         /* 管線發光效果 */
         .glow-cold { filter: drop-shadow(0 0 2px rgba(0, 135, 220, 0.4)); }
-        .glow-hot { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.4)); }
+        .glow-cooling { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.4)); }
     </style>
 </head>
 <body>
@@ -476,7 +476,7 @@
             
             <div id="connection-controls">
                 <button class="pipe-btn btn-cold" onclick="startConnecting('cold')">Chilled Water Loop</button>
-                <button class="pipe-btn btn-hot" onclick="startConnecting('hot')">Cooling Water Loop</button>
+                <button class="pipe-btn btn-cooling" onclick="startConnecting('cooling')">Cooling Water Loop</button>
             </div>
 
             <div id="flaticon-attribution">
@@ -509,7 +509,7 @@
             deleteNodeConfirm: '確定要刪除這個元件嗎？\n(與其相連的管線也會一併清除)',
             deletePipeConfirm: '確定要刪除這條管線嗎？',
             coldPipeStart: '<span style="color:var(--cold-pipe);">請選擇第一個元件（正在建立冰水迴路)...</span>',
-            hotPipeStart: '<span style="color:var(--cooling-pipe);">請選擇第一個元件（正在建立冷水迴路）...</span>',
+            coolingPipeStart: '<span style="color:var(--cooling-pipe);">請選擇第一個元件（正在建立冷水迴路）...</span>',
             selectSecond: '選擇第二個元件...',
             catHVAC: '空調設備 (HVAC Units)',
             catWhiteSpace: '白空間 / 負載端 (White Space)',
@@ -525,7 +525,7 @@
             deleteNodeConfirm: 'Delete this component?\n(Connected pipelines will also be removed)',
             deletePipeConfirm: 'Delete this pipeline?',
             coldPipeStart: '<span style="color:var(--cold-pipe);">Select first component (Routing Chilled Water Loop)...</span>',
-            hotPipeStart: '<span style="color:var(--cooling-pipe);">Select first component (Routing Cooling Water Loop)...</span>',
+            coolingPipeStart: '<span style="color:var(--cooling-pipe);">Select first component (Routing Cooling Water Loop)...</span>',
             selectSecond: 'Select second component...',
             catHVAC: 'HVAC Units',
             catWhiteSpace: 'White Space / Load',
@@ -731,7 +731,7 @@
         isConnecting = true;
         currentPipeType = type;
         firstNode = null;
-        document.getElementById('conn-hint').innerHTML = type === 'cold' ? i18n[currentLang].coldPipeStart : i18n[currentLang].hotPipeStart;
+        document.getElementById('conn-hint').innerHTML = type === 'cold' ? i18n[currentLang].coldPipeStart : i18n[currentLang].coolingPipeStart;
     }
 
     function handleNodeClickForConnection(nodeId) {
@@ -1015,7 +1015,7 @@ function drawArrowsOnPath(group, pts, type) {
             triangle.setAttribute('points', '-6,-4 4,0 -6,4');
             triangle.setAttribute('fill', arrowColor);
             triangle.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle * 180 / Math.PI})`);
-            triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-hot');
+            triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-cooling');
             group.appendChild(triangle);
         }
     }
