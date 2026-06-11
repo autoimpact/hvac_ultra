@@ -863,7 +863,7 @@ function drawPipelines() {
             baseLine.setAttribute('fill', 'none');
             
             // 🔧 【修正】讓線條顏色精準回歸原本的冷熱水管變數
-            baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)');
+            baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--cooling-pipe)');
             
             baseLine.setAttribute('stroke-width', '2');
             baseLine.setAttribute('opacity', '0.35'); // 恢復原本淡淡的線條透明度
@@ -910,7 +910,7 @@ function drawPipelines() {
         const arrowSpacing = 28; 
         
         // 🔧 【修正】讓箭頭顏色精準回歸原本的冷熱水管顏色
-        const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)';
+        const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--cooling-pipe)';
         
         const angle = Math.atan2(dy, dx); 
         
@@ -925,7 +925,7 @@ function drawPipelines() {
             triangle.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle * 180 / Math.PI})`);
             
             // 恢復你原本的發光（Glow）效果特效類別
-            triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-hot');
+            triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-cooling');
             
             group.appendChild(triangle);
         }
