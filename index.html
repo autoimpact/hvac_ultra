@@ -781,245 +781,126 @@
     return { x: intersections[0].x, y: intersections[0].y };
 }
 
-// ==========================================
-// 1. 新增輔助函式：幾何與邊界運算
-// ==========================================
-
-// 取得節點相對於工作區的邊界座標，用於精確計算四邊中點
-function getRelativeRect(el, container) {
-    const elRect = el.getBoundingClientRect();
-    const contRect = container.getBoundingClientRect();
-    return {
-        left: elRect.left - contRect.left,
-        top: elRect.top - contRect.top,
-        right: elRect.right - contRect.left,
-        bottom: elRect.bottom - contRect.top,
-        cx: (elRect.left - contRect.left) + elRect.width / 2,
-        cy: (elRect.top - contRect.top) + elRect.height / 2,
-        width: elRect.width,
-        height: elRect.height
-    };
-}
-
-// 根據兩點相對位置，決定最理想的出發與抵達邊緣
-function getPrimaryEdgeForSource(dx, dy) {
-    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'B' : 'T');
-}
-function getPrimaryEdgeForTarget(dx, dy) {
-    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'L' : 'R') : (dy > 0 ? 'T' : 'B');
-}
-
-// 若最佳邊緣已被佔用（確保 Input/Output 不在同一邊），取得備用邊緣
-function getAlternativeEdge(edge, dx, dy) {
-    if (edge === 'R' || edge === 'L') return dy > 0 ? 'B' : 'T';
-    if (edge === 'T' || edge === 'B') return dx > 0 ? 'R' : 'L';
-    return 'T';
-}
-
-// 根據指定的邊緣，回傳精確的 X, Y 中點座標與方向
-function getPortCoords(rect, edge) {
-    switch(edge) {
-        case 'T': return { x: rect.cx, y: rect.top, dir: 'T' };
-        case 'B': return { x: rect.cx, y: rect.bottom, dir: 'B' };
-        case 'L': return { x: rect.left, y: rect.cy, dir: 'L' };
-        case 'R': return { x: rect.right, y: rect.cy, dir: 'R' };
-    }
-}
-
-// 取得延伸點，用於繪製正交路徑的第一段直線
-function getExtPt(pt, dist) {
-    if(pt.dir === 'T') return {x: pt.x, y: pt.y - dist};
-    if(pt.dir === 'B') return {x: pt.x, y: pt.y + dist};
-    if(pt.dir === 'L') return {x: pt.x - dist, y: pt.y};
-    if(pt.dir === 'R') return {x: pt.x + dist, y: pt.y};
-}
-
-
-// ==========================================
-// 2. 新增核心邏輯：正交路徑產生器
-// ==========================================
-function generateRoute(p1, p2, offset) {
-    let pts = [p1];
-    let extDist = 25 + Math.abs(offset); 
-    let c1 = getExtPt(p1, extDist);
-    let c2 = getExtPt(p2, extDist);
-
-    // 套用 offset 偏移量，確保平行管線在起始與終點處就錯開，不發生重疊 (Req 3)
-    if(p1.dir === 'T' || p1.dir === 'B') {
-        c1.x += offset;
-        pts[0] = {x: p1.x + offset, y: p1.y};
-    } else {
-        c1.y += offset;
-        pts[0] = {x: p1.x, y: p1.y + offset};
-    }
-
-    if(p2.dir === 'T' || p2.dir === 'B') {
-        c2.x += offset; 
-        p2 = {x: p2.x + offset, y: p2.y};
-    } else {
-        c2.y += offset;
-        p2 = {x: p2.x, y: p2.y + offset};
-    }
-
-    pts.push(c1);
-
-    // 判斷走線需轉折的方式，並加上防回頭 (防穿透節點) 機制
-    if (p1.dir === 'R' || p1.dir === 'L') {
-        let midX = (c1.x + c2.x) / 2;
-        if ((p1.dir === 'R' && c1.x > c2.x) || (p1.dir === 'L' && c1.x < c2.x)) {
-            // 需回頭時，刻意拉大 Y 軸距離繞過節點
-            let midY = (c1.y + c2.y) / 2 + (c1.y > c2.y ? 70 : -70);
-            pts.push({x: c1.x, y: midY}, {x: c2.x, y: midY});
-        } else {
-            pts.push({x: midX, y: c1.y}, {x: midX, y: c2.y});
-        }
-    } else {
-        let midY = (c1.y + c2.y) / 2;
-        if ((p1.dir === 'B' && c1.y > c2.y) || (p1.dir === 'T' && c1.y < c2.y)) {
-            let midX = (c1.x + c2.x) / 2 + (c1.x > c2.x ? 70 : -70);
-            pts.push({x: midX, y: c1.y}, {x: midX, y: c2.y});
-        } else {
-            pts.push({x: c1.x, y: midY}, {x: c2.x, y: midY});
-        }
-    }
-
-    pts.push(c2);
-    pts.push(p2);
-    return pts;
-}
-
-
-// ==========================================
-// 3. 替換原函式：重寫的 drawPipelines
-// ==========================================
 function drawPipelines() {
-    const svg = document.getElementById('svg-layer');
-    const workspace = document.getElementById('workspace');
-    const defsContent = svg.querySelector('defs') ? svg.querySelector('defs').outerHTML : '<defs></defs>';
-    svg.innerHTML = defsContent; 
-    svg.style.pointerEvents = 'auto';
+        const svg = document.getElementById('svg-layer');
+        const defsContent = svg.querySelector('defs').outerHTML;
+        svg.innerHTML = defsContent; 
+        svg.style.pointerEvents = 'auto';
 
-    // 紀錄每個節點已被使用的邊緣方向 (Req 2)
-    let nodeEdges = {};
-    nodes.forEach(n => nodeEdges[n.id] = { in: new Set(), out: new Set() });
+        // 【新增】用來記錄整個畫布上所有已繪製箭頭中心點的陣列
+        const drawnArrows = [];
 
-    // 紀錄兩節點間連線數量，用來決定偏移距
-    let pairCounts = {};
+        pipelines.forEach((pipe, index) => {
+            const el1 = document.getElementById(pipe.from);
+            const el2 = document.getElementById(pipe.to);
+            if (!el1 || !el2) return;
 
-    pipelines.forEach((pipe, index) => {
-        const el1 = document.getElementById(pipe.from);
-        const el2 = document.getElementById(pipe.to);
-        if (!el1 || !el2) return;
+            const imgW1 = el1.querySelector('.img-wrapper');
+            const imgW2 = el2.querySelector('.img-wrapper');
 
-        const rect1 = getRelativeRect(el1, workspace);
-        const rect2 = getRelativeRect(el2, workspace);
+            const x1 = el1.offsetLeft + el1.offsetWidth / 2;
+            const y1 = el1.offsetTop + imgW1.offsetTop + (imgW1.offsetHeight / 2);
+            const x2 = el2.offsetLeft + el2.offsetWidth / 2;
+            const y2 = el2.offsetTop + imgW2.offsetTop + (imgW2.offsetHeight / 2);
 
-        const dx = rect2.cx - rect1.cx;
-        const dy = rect2.cy - rect1.cy;
+            const offset = pipe.type === 'cold' ? -12 : 12;
+            const cx1 = x1 + offset;
+            const cy1 = y1 + offset;
+            const cx2 = x2 + offset;
+            const cy2 = y2 + offset;
+            const midY = (cy1 + cy2) / 2;
 
-        let p1Edge = getPrimaryEdgeForSource(dx, dy);
-        let p2Edge = getPrimaryEdgeForTarget(dx, dy);
+            const pathData = `M ${cx1} ${cy1} L ${cx1} ${midY} L ${cx2} ${midY} L ${cx2} ${cy2}`;
 
-        // Req 2: 確保 Input / Output Vector 不在同一邊
-        if (nodeEdges[pipe.from].in.has(p1Edge)) {
-            p1Edge = getAlternativeEdge(p1Edge, dx, dy);
-        }
-        nodeEdges[pipe.from].out.add(p1Edge);
+            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.style.cursor = 'pointer';
 
-        if (nodeEdges[pipe.to].out.has(p2Edge)) {
-            p2Edge = getAlternativeEdge(p2Edge, -dx, -dy);
-        }
-        nodeEdges[pipe.to].in.add(p2Edge);
-
-        // Req 1: 取得四邊中點坐標
-        const port1 = getPortCoords(rect1, p1Edge);
-        const port2 = getPortCoords(rect2, p2Edge);
-
-        // 決定此管線的交錯 Offset (Req 3)
-        const pairKey = [pipe.from, pipe.to].sort().join('-');
-        if(!pairCounts[pairKey]) pairCounts[pairKey] = 0;
-        const currentOffsetIndex = pairCounts[pairKey]++;
-        
-        let baseOffset = pipe.type === 'cold' ? -12 : 12;
-        let finalOffset = baseOffset + (currentOffsetIndex * 25);
-
-        // 生成多段式正交路徑
-        const pathPts = generateRoute(port1, port2, finalOffset);
-        const pathData = "M " + pathPts.map(p => `${p.x} ${p.y}`).join(" L ");
-
-        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        group.style.cursor = 'pointer';
-
-        const baseLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        baseLine.setAttribute('d', pathData);
-        baseLine.setAttribute('fill', 'none');
-        baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--cooling-pipe)');
-        baseLine.setAttribute('stroke-width', '2');
-        baseLine.setAttribute('opacity', '0.35');
-        group.appendChild(baseLine);
-
-        // 沿著多段路徑繪製箭頭
-        drawArrowsOnPath(group, pathPts, pipe.type);
-
-        const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        hitArea.setAttribute('d', pathData);
-        hitArea.setAttribute('fill', 'none');
-        hitArea.setAttribute('stroke', 'transparent');
-        hitArea.setAttribute('stroke-width', '25');
-
-        group.addEventListener('mouseenter', () => {
-            baseLine.setAttribute('stroke-width', '4');
-            baseLine.setAttribute('opacity', '0.7');
-        });
-        group.addEventListener('mouseleave', () => {
+            const baseLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            baseLine.setAttribute('d', pathData);
+            baseLine.setAttribute('fill', 'none');
+            baseLine.setAttribute('stroke', pipe.type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)');
             baseLine.setAttribute('stroke-width', '2');
             baseLine.setAttribute('opacity', '0.35');
+            group.appendChild(baseLine);
+
+            // 【修改】將 `drawnArrows` 緩存與管線的 `index` 傳入箭頭繪製函數中
+            drawArrowsOnSegment(group, cx1, cy1, cx1, midY, pipe.type, drawnArrows, index); 
+            drawArrowsOnSegment(group, cx1, midY, cx2, midY, pipe.type, drawnArrows, index); 
+            drawArrowsOnSegment(group, cx2, midY, cx2, cy2, pipe.type, drawnArrows, index); 
+
+            const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            hitArea.setAttribute('d', pathData);
+            hitArea.setAttribute('fill', 'none');
+            hitArea.setAttribute('stroke', 'transparent');
+            hitArea.setAttribute('stroke-width', '25');
+
+            group.addEventListener('mouseenter', () => {
+                baseLine.setAttribute('stroke-width', '4');
+                baseLine.setAttribute('opacity', '0.7');
+            });
+            group.addEventListener('mouseleave', () => {
+                baseLine.setAttribute('stroke-width', '2');
+                baseLine.setAttribute('opacity', '0.35');
+            });
+            group.addEventListener('click', () => {
+                if(confirm(i18n[currentLang].deletePipeConfirm)) {
+                    pipelines.splice(index, 1);
+                    drawPipelines();
+                }
+            });
+
+            group.appendChild(hitArea);
+            svg.appendChild(group);
         });
-        group.addEventListener('click', () => {
-            if(confirm(i18n[currentLang].deletePipeConfirm)) {
-                pipelines.splice(index, 1);
-                drawPipelines();
-            }
-        });
+    }
 
-        group.appendChild(hitArea);
-        svg.appendChild(group);
-    });
-}
-
-
-// ==========================================
-// 4. 替換原函式：支援多段路徑的箭頭繪製器
-// ==========================================
-function drawArrowsOnPath(group, pts, type) {
-    const arrowSpacing = 40; // 調整為 40，讓三角形有足夠空間，避免視覺壅擠
-    const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--cooling-pipe)';
-
-    for (let i = 0; i < pts.length - 1; i++) {
-        const dx = pts[i+1].x - pts[i].x;
-        const dy = pts[i+1].y - pts[i].y;
+    function drawArrowsOnSegment(group, xStart, yStart, xEnd, yEnd, type, drawnArrows, pipeIndex) {
+        const dx = xEnd - xStart;
+        const dy = yEnd - yStart;
         const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 15) return; 
 
-        // 若線段太短則略過不繪製箭頭
-        if (len < 30) continue;
+        const arrowSpacing = 25; 
+        const arrowColor = type === 'cold' ? 'var(--cold-pipe)' : 'var(--hot-pipe)';
+        const angle = Math.atan2(dy, dx); 
+        
+        // 【優化 1】動態計算起點：利用管線 index 奇偶數讓相鄰管線的箭頭「交錯（Stagger）」排列
+        const startDist = 15 + (pipeIndex % 2) * (arrowSpacing / 2);
+        
+        // 【優化 2】定義防重疊的安全距離半徑 (像素)
+        const minCollisionRadius = 18; 
 
-        const angle = Math.atan2(dy, dx);
-
-        // 首尾預留 15px 空間，避免箭頭壓在轉角上
-        for (let dist = 15; dist < len - 15; dist += arrowSpacing) {
+        for (let dist = startDist; dist < len - 10; dist += arrowSpacing) {
             const pct = dist / len;
-            const x = pts[i].x + dx * pct;
-            const y = pts[i].y + dy * pct;
+            const x = xStart + dx * pct;
+            const y = yStart + dy * pct;
+            
+            // 【優化 3】空間碰撞檢查：走訪過去畫過的所有箭頭，若離任何一個太近就放棄繪製此箭頭
+            let isOverlapping = false;
+            for (let i = 0; i < drawnArrows.length; i++) {
+                const existing = drawnArrows[i];
+                // 計算兩點間的歐幾里得距離
+                const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2);
+                if (distance < minCollisionRadius) {
+                    isOverlapping = true;
+                    break;
+                }
+            }
 
+            // 如果檢測到重疊，直接跳過不畫，繼續計算下一個位置
+            if (isOverlapping) continue;
+
+            // 若安全，將目前位置記錄到緩存中
+            drawnArrows.push({ x: x, y: y });
+            
             const triangle = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
             triangle.setAttribute('points', '-6,-4 4,0 -6,4');
             triangle.setAttribute('fill', arrowColor);
             triangle.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle * 180 / Math.PI})`);
-            triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-cooling');
+            triangle.setAttribute('class', type === 'cold' ? 'glow-cold' : 'glow-hot');
             group.appendChild(triangle);
         }
     }
-}
     function resetCanvas() {
         nodes = [];
         pipelines = [];
