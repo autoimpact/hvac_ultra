@@ -780,16 +780,6 @@
     intersections.sort((a, b) => a.t - b.t);
     return { x: intersections[0].x, y: intersections[0].y };
 }
-
-是的，沒錯！這段程式碼只需要取代您原有的 drawPipelines 與 drawArrowsOnSegment 這兩個函數即可。
-
-為了讓您能百分之百放心地貼上，我幫您梳理一下結構。請在您的 <script> 標籤內，找到這兩個函數的舊範圍，並用下面的程式碼完整覆蓋：
-
-JavaScript
-// =================================================================
-// 貼上此處：完整覆蓋您原本的 drawPipelines 與 drawArrowsOnSegment
-// =================================================================
-
     function drawPipelines() {
         const svg = document.getElementById('svg-layer');
         const defsContent = svg.querySelector('defs').outerHTML;
